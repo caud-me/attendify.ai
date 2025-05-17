@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendify - Instructor</title>
+    <link rel="stylesheet" href="./stylesheets/pre.css">
+    <link rel="stylesheet" href="./stylesheets/ui.css">
+    <link rel="stylesheet" href="./stylesheets/fun.css">
+</head>
+
+<body>
+    <main>
+        <header>
+            <h1><span id="instructor_full_name"></span></h1>
+            <div class="respect">
+                <img src="resources/verified.svg" alt="" srcset="">
+                <p>Verified Teacher</p>
+                <a class="button" href="/logout">Sign Out</a>
+                <a href="/settings" class="button">Settings</a>
+                <a href="" id="mainToggle">✢</a>
+                <a href="/aibo">Aibo AI</a>
+            </div>
+        </header>
+
+        <section id="banner" class="banner prompting wrapped">
+            <img src="resources/Christmas-Collection n5.svg" alt="" srcset="" class="scalable">
+            <!-- <h4>Welcome to</h4> -->
+            <h4 class="colorfull">MAWD 12 Presents...</h4>
+            <h1 class="colorfull">Attendify!</h1>
+            <p>Your simple way to track attendance effortlessly.</p>
+            <p class="left">
+                ✅ Real-time attendance tracking<br>
+                ✅ Powerful insights at your fingertips<br>
+                ✅ Instructors can send flags to facilitators<br>
+                ✅ Export attendance and insights with ease
+            </p>
+            <p>Let's get started! 🚀</p>
+            <button onclick="dismissBanner()">Got it, Thanks!</button>
+        </section>
+
+        <section>
+            <h3>Ongoing</h3>
+            <div id="isFreeTime" class="prompting wrapped">
+                <img src="resources/Chill-Time.svg" alt="" class="scalable">
+                <small>Cheers, no ongoing class right now!</small>
+            </div>
+
+            <div id="isFreeTimeC" class="hidden">
+                <div id="widget_ongoing">
+                    <div>
+                        <div id="widget_ongoing_section">MAWD</div>
+                        <div id="widget_ongoing_grade">12</div>
+                    </div>
+                    <div>
+                        <div id="widget_ongoing_course">Inquiries, Investigation, Immersion</div>
+                        <div id="widget_ongoing_schedule">10:30 am to 12 pm</div>
+                    </div>
+                </div>
+                <h3>Live Student Monitoring</h3>
+                <p id="liveDataContainer"></p>
+                <p>As soon as the student scans during your class, the data will be recorded here in realtime. You can get a copy of todays attendance <a href="instructor/downloadStudentAttendanceToday">here</a></p>
+                <div class="colorfulll liner"></div>
+                <div class="displayTable" id="table_todayAttendance">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Student</th>
+                                <th>Status</th>
+                                <th>Time In</th>
+                                <th>Time Out</th>
+                                <th>Grade Section</th>
+                                <th>Student ID</th>
+                                <th>Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody id="instructor_ongoingStudents">
+                            <!-- Students data will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h3>Your <span id="day"></span> schedule</h3>
+            <p>You can get a copy of your schedule for <a href="/instructor/downloadTodayScheduleOfTeacher">today</a> or export your <a href="/instructor/downloadAllScheduleOfTeacher">full schedule</a>.</p>
+            <div class="displayTable">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Course</th>
+                            <th>Start Time</th>
+                            <th>End Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="instructor_schedule">
+                        <!-- instrutor_schedule filled with SQL -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="wrapped">
+            <h3>Open Schedule</h3>
+            <p>Displays classes of all instructors in a visualized manner</p>
+            <div class="displayTable">
+                <table id="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Mon</th>
+                            <th>Tue</th>
+                            <th>Wed</th>
+                            <th>Thu</th>
+                            <th>Fri</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Rows will be added dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section>
+            <small class="stub colorfulll">NEW</small>
+            <h3>Monthly Attendance</h3>
+            <p>Keep track of your students' attendance records for each month. Select the desired month and year to view the attendance overview.</p>
+            <p>Export attendance records for this month <a href="/instructor/monthlyAttendance/download">here</a>.</p>
+            <div class="controls">
+                <select id="month" name="month" title="month">
+                    <option value="1">January</option>
+                    <option value="2">February</option>
+                    <option value="3">March</option>
+                    <option value="4">April</option>
+                    <option value="5">May</option>
+                    <option value="6">June</option>
+                    <option value="7">July</option>
+                    <option value="8">August</option>
+                    <option value="9">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                </select>
+
+                <select id="year" name="year" title="year"></select>
+            </div>
+            <div class="displayTable">
+                <table class="attendance-table">
+                    <thead>
+                        <tr id="attendanceHeader">
+                            <th>#</th>
+                            <th>Student Name</th>
+
+                        </tr>
+                    </thead>
+                    <tbody id="attendanceTableBody"></tbody>
+                </table>
+            </div>
+            <small>Where Late: Yellow, Green: Present. Absent students left unmarked.</small>
+        </section>
+
+        <footer>
+            <img src="resources/attendify - logo.svg" alt="" height="48px" width="48px">
+            <h3>Attendify</h3>
+            <p>Esperida D., Penas J., Rodriguez N., Ros H., Caudilla A., Guido N., Oropesa I. <a href="/demolive">Details...</a> </p>
+        </footer>
+
+        <!-- <section>
+            <h2>Exporting Data</h2>
+            <p>You can download a CSV copy of your students attendance records on the selected course here, note that the courses you're only incharge of is shown.</p>
+            <h4>Courses</h4>
+            <a href="#">Inquiries, Investigation, Immersion</a>
+            <a href="#">Work Immersion</a>
+        </section> -->
+
+        <!-- <section>
+            <h3>JSON Response</h3>
+            <pre id="liveDataContainer">
+                
+            </pre>
+        </section> -->
+
+        <div id="remarkModal" class="modal hidden">
+            <div class="modal-content">
+                <h3>Flag a Student</h3>
+                <p id="remarkStudentName"></p>
+                <input type="text" id="remarkInput" placeholder="Max 255 characters" maxlength="255">
+                <div class="modal-buttons">
+                    <button id="remarkConfirm">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="displayUpdate" class="hidden"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="scripts/instructor.js"></script>
+    <script src="./scripts/global_banner.js" defer></script>
+    <script src="./scripts/global_theme.js" defer></script>
+    
+</body>
+
+</html>

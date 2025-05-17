@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendify</title>
+    <link rel="stylesheet" href="./stylesheets/pre.css">
+    <link rel="stylesheet" href="./stylesheets/ui.css">
+    <link rel="stylesheet" href="./stylesheets/fun.css">
+</head>
+<body>
+    <main class="splitter notLimitedTo768p">
+        <section class="intro-section" >
+            <video src="./resources/New Project 2 [DBBC001].mp4" autoplay muted></video>
+        </section>
+        <section class="signIn-section">
+            <h1 class="colorfull animating">Attendify</h1>
+            <h3>Manage large attendance records, fast.</h3>
+            <!-- <div class="justified">
+                <p>Attendify is a web-based application that aims to provide a seamless experience for both teachers and students, it is designed to be lightweight and easy to use, with no frameworks used.</p>
+                <p>It is currently in its pre-testing phase, and we are looking for volunteers to help us test the application, if you are interested, please sign in below.</p>
+            </div> -->
+            <div class="wrapped centered">
+                <h3>Sign In</h3>
+                <form action="/signin" method="POST" class="signIn">
+                    <input name="username" placeholder="Your Username..." type="text">
+                    <input name="password" placeholder="Your Password..." type="text">
+                    <button type="submit">Continue</button>
+                </form>
+            </div>
+            <small class="centered">Creating an account? Contact the IT administrator for your institution to get started.</small>
+        </section>
+    </main>
+    <script src="./scripts/global_animations.js"></script>
+    <script src="./scripts/global_theme.js" defer></script>
+</body>
+</html>

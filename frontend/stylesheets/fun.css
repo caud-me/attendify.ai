@@ -1,0 +1,41 @@
+.colorfull {
+    background: linear-gradient(135deg, #a117eb, #cab0ff, #6f00ff, #2500ac, #2b2b2b);
+    background-size: 400% 400%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: smoothGradient 8s ease infinite;
+}
+
+.colorfulll {
+    background: linear-gradient(135deg, #a117eb, #cab0ff, #6f00ff, #2500ac, #2b2b2b);
+    background-size: 400% 400%;
+    animation: smoothGradient 4s ease infinite;
+}
+
+@keyframes smoothGradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+button {
+    transition: all 0.3s ease;
+}
+
+.centered {
+    text-align: center;
+}
+
+.justified > * {
+    text-align: justify;
+}
+
+h1:hover {
+    background: linear-gradient(135deg, #a117eb, #cab0ff, #6f00ff, #2500ac, #2b2b2b);
+    background-size: 400% 400%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: smoothGradient 8s ease infinite;
+}

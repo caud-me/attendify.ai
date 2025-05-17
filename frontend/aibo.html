@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendify Aibo Chat</title>
+  <script src="https://cdn.jsdelivr.net/npm/showdown/dist/showdown.min.js"></script>
+  <link rel="stylesheet" href="stylesheets/pre.css">
+  <link rel="stylesheet" href="stylesheets/ui.css">
+  <link rel="stylesheet" href="stylesheets/fun.css">
+</head>
+<body>
+  <main>
+    <section>
+      <a href="/">Go Back</a>
+      <h1 class="colorfull animating">Aibo</h1>
+      <div class="respect">
+          <img src="resources/verified.svg" alt="" srcset="">
+          <p>Verified AI</p>
+          <a class="button" href="/logout">Sign Out</a>
+          <a href="/settings" class="button">Settings</a>
+      </div>
+    </section>
+
+    
+
+    <section class="chat-container">
+      <div id="output">
+        <!-- Messages will be added here -->
+      </div>
+
+      <div class="input-area">
+        <input id="prompt" placeholder="Type your message..." />
+        <button onclick="ask()">Send</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const messageHistory = [];
+    const dummyInitialMessage = {
+      content: "Hello! I'm Aibo. Hit me with your thoughts",
+      role: "bot"
+    };
+
+async function resetConversation() {
+  try {
+    await fetch("http://localhost:3000/reset", {
+      method: "POST",
+      credentials: "include", // ensures session cookie is sent
+    });
+  } catch (err) {
+    console.error("Failed to reset conversation:", err);
+  }
+}
+
+function initUI() {
+  resetConversation(); // 👈 call this first to clear backend history
+
+  // Rest of your init stuff...
+  const outputDiv = document.getElementById("output");
+  outputDiv.innerHTML = "";
+
+  addMessageToChat(dummyInitialMessage.content, dummyInitialMessage.role);
+  messageHistory.push(dummyInitialMessage);
+
+  document.getElementById("prompt").addEventListener("keydown", function(event) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      ask();
+    }
+  });
+}
+
+function addMessageToChat(content, role) {
+  const outputDiv = document.getElementById("output");
+  const messageDiv = document.createElement("div");
+  messageDiv.className = `message ${role}-message`;
+
+  if (role === 'bot') {
+    const converter = new showdown.Converter({
+      simplifiedAutoLink: true,
+      strikethrough: true,
+      tables: true
+    });
+    const html = converter.makeHtml(content);
+    messageDiv.innerHTML = html;
+
+    // ✨ Apply temporary gradient animation
+    messageDiv.classList.add('bot-animated');
+
+    // 👇 After animation, switch to solid style for JUST this message
+    setTimeout(() => {
+      messageDiv.classList.remove('bot-animated');
+      messageDiv.classList.add('bot-solid');
+    }, 2000); // match CSS animation duration
+  } else {
+    messageDiv.textContent = content;
+  }
+
+  outputDiv.appendChild(messageDiv);
+  outputDiv.scrollTop = outputDiv.scrollHeight;
+}
+
+    function showTypingIndicator() {
+      const outputDiv = document.getElementById("output");
+      const indicator = document.createElement("div");
+      indicator.className = "typing-indicator";
+      indicator.id = "typing-indicator";
+      indicator.innerHTML = "<span></span><span></span><span></span> Thinking...";
+      outputDiv.appendChild(indicator);
+      outputDiv.scrollTop = outputDiv.scrollHeight;
+    }
+
+    function removeTypingIndicator() {
+      const indicator = document.getElementById("typing-indicator");
+      if (indicator) indicator.remove();
+    }
+
+async function ask() {
+  const promptInput = document.getElementById("prompt");
+  const sendButton = document.querySelector(".input-area button");
+  const prompt = promptInput.value;
+
+  if (!prompt.trim()) return;
+
+  // Add user message
+  addMessageToChat(prompt, 'user');
+  messageHistory.push({ role: 'user', content: prompt });
+
+  // Disable input while waiting
+  promptInput.value = "";
+  promptInput.disabled = true;
+  sendButton.disabled = true;
+  showTypingIndicator();
+
+  try {
+    const res = await fetch("http://localhost:3000/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt })
+    });
+
+    const data = await res.json();
+    removeTypingIndicator();
+
+    // Re-enable input
+    promptInput.disabled = false;
+    sendButton.disabled = false;
+    promptInput.focus();
+
+    // Add bot message
+    addMessageToChat(data.response, 'bot');
+    messageHistory.push({ role: 'bot', content: data.response });
+  } catch (err) {
+    console.error("Error:", err);
+    removeTypingIndicator();
+
+    promptInput.disabled = false;
+    sendButton.disabled = false;
+    promptInput.focus();
+
+    addMessageToChat("Sorry, something went wrong. Please try again.", 'bot');
+    messageHistory.push({ role: 'bot', content: "Sorry, something went wrong. Please try again." });
+  }
+}
+
+    // Initialize on page load
+    document.addEventListener("DOMContentLoaded", initUI);
+  </script>
+
+  <script src="./scripts/global_banner.js"></script>
+  <script src="./scripts/global_theme.js"></script>
+</body>
+</html>
