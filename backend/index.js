@@ -431,7 +431,7 @@ async function prefillAttendance() {
 
 
 
-// prefillAttendance()
+prefillAttendance()
 
 // Start server
 httpServer.listen(port, () => {
@@ -525,7 +525,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const moment = require('moment-timezone');
 
 // API Key
-const apiKey = process.env.GOOGLE_API_KEY || "AIzaSyA2WLRIBWPmtm5wwtd_Wn_bP1KnmnWEZCw"; // Secure your API key
+const apiKey = process.env.GOOGLE_API_KEY || "AIzaSyADzZJDCNyZYcJFfiKmPRb9rNyd5O7GVSY"; // Secure your API key
 const ai = new GoogleGenerativeAI(apiKey);
 
 // Chat History (MAP) - Store full conversation history per user
@@ -540,12 +540,9 @@ const MAX_HISTORY_LENGTH = 20; // Store last 20 exchanges
 async function getInstructorData(username, timezone) {
     try {
         const now = moment().tz(timezone);
-        const dayName = now.format('dddd');
-
+        const dayNameShort = now.format('ddd'); // e.g., 'Mon', 'Tue'
         const dateString = now.format('YYYY-MM-DD');
-        const timeString = now.format('HH:mm:ss');
-        const dayNameShort = now.format('ddd');
-        const currentTime = timeString;
+        const currentTime = now.format('HH:mm:ss');
 
         // Fetch Schedule
         const [me_schedule] = await $pool.execute(`
@@ -556,7 +553,6 @@ async function getInstructorData(username, timezone) {
             ORDER BY FIELD(class_meeting.day, 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'), class_meeting.start_time;
         `, [username]);
 
-        // Format Schedule
         let scheduleString = "No schedule available.";
         if (me_schedule && me_schedule.length > 0) {
             scheduleString = me_schedule.map(s => `${s.course_name} (${s.start_time} - ${s.end_time})`).join(", ");
@@ -565,23 +561,122 @@ async function getInstructorData(username, timezone) {
         // Fetch Ongoing Class
         const [ongoing_class] = await $pool.execute(`
             SELECT cm.class_id, c.course_name AS subject, cm.grade_section, cm.start_time, cm.end_time
-            FROM classes cm JOIN courses c ON cm.course_code = c.course_code
+            FROM classes cm 
+            JOIN courses c ON cm.course_code = c.course_code
             WHERE cm.teacher_username = ? AND cm.day = ? AND ? BETWEEN cm.start_time AND cm.end_time
         `, [username, dayNameShort, currentTime]);
 
-        // Format Ongoing Class
         let ongoingClassString = "No ongoing class.";
         if (ongoing_class && ongoing_class.length > 0) {
             ongoingClassString = `Teaching ${ongoing_class[0].subject} (${ongoing_class[0].start_time} - ${ongoing_class[0].end_time})`;
         }
 
-        return { schedule: scheduleString, ongoing_class: ongoingClassString };
+        // Fetch All Students across all classes of the teacher
+        const [all_students] = await $pool.execute(`
+            SELECT 
+                s.student_id,
+                s.full_name,
+                s.grade_section,
+                sc.class_id,
+                c.course_name,
+                cl.day,
+                cl.start_time,
+                cl.end_time,
+                a.status,
+                a.time_in,
+                a.time_out,
+                a.remark
+            FROM students s
+            JOIN student_classes sc ON s.student_id = sc.student_id
+            JOIN classes cl ON sc.class_id = cl.class_id
+            JOIN courses c ON cl.course_code = c.course_code
+            LEFT JOIN attendance a 
+                ON a.student_id = s.student_id 
+                AND a.class_id = cl.class_id 
+                AND a.attendance_date = ?
+            WHERE cl.teacher_username = ?
+            ORDER BY cl.class_id, s.full_name ASC;
+        `, [dateString, username]);
+
+        // Format student data
+        const students = all_students.map(student => ({
+            student_id: student.student_id,
+            full_name: student.full_name,
+            grade_section: student.grade_section,
+            class_id: student.class_id,
+            course_name: student.course_name,
+            class_day: student.day,
+            start_time: student.start_time,
+            end_time: student.end_time,
+            status: student.status || 'absent',
+            time_in: student.time_in ? student.time_in.toString() : null,
+            time_out: student.time_out ? student.time_out.toString() : null,
+            remark: student.remark || null
+        }));
+
+
+        const [classes] = await $pool.execute(`
+            SELECT classes.*, courses.course_name 
+            FROM classes
+            JOIN courses ON classes.course_code = courses.course_code
+            ORDER BY teacher_username
+  `);  
+        const openschedule = classes.map((classItem) => {
+            return {
+                class_id: classItem.class_id,
+                course_name: classItem.course_name,
+                day: classItem.day,
+                start_time: classItem.start_time,
+                end_time: classItem.end_time
+            };
+        });
+
+        return {
+            schedule: scheduleString,
+            ongoing_class: ongoingClassString,
+            students, openschedule
+        };
 
     } catch (error) {
         console.error("Error getting instructor data:", error);
-        return { schedule: "Error fetching schedule", ongoing_class: "Error fetching class" };
+        return {
+            schedule: "Error fetching schedule",
+            ongoing_class: "Error fetching class",
+            students: [],
+            openschedule: [] 
+        };
     }
 }
+
+
+/*
+getInstructorData potential response:
+
+{
+    schedule: "Math 101 (08:00 - 09:30), Science 101 (10:00 - 11:30)",
+    ongoing_class: "Teaching Math 101 (08:00 - 09:30)",
+    students: [
+        {
+            student_id: 1,
+            full_name: "John Doe",
+            grade_section: "10A",
+            class_id: 101,
+            course_name: "Math 101",
+            class_day: "Mon",
+            start_time: "08:00",
+            end_time: "09:30",
+            status: "present",
+            time_in: "08:05",
+            time_out: null,
+            remark: null
+        },
+        // ... more students
+    ]
+}
+
+*/
+
+
 
 // Get user's conversation history or initialize if not exists
 function getUserHistory(username) {
@@ -616,14 +711,45 @@ async function askAibo(prompt, username, instructorData) {
     // Get user history
     const history = getUserHistory(username);
     const formattedHistory = formatHistoryForGemini(history);
-    
-    // Create system prompt with instructor context
-    const systemPrompt = `You are Attendify Aibo, a professional AI assistant for instructors.
+
+    // map all information of student
+    let studentDetails =
+    `
+    ${instructorData.students.map(student => 
+      `- **${student.full_name}** (ID: ${student.student_id}, Section: ${student.grade_section}, Subject: ${student.course_name}, Class: ${student.class_id}, Day: ${student.class_day}, Time: ${student.start_time}-${student.end_time})  
+      Status: ${student.status}, Time In: ${student.time_in || "N/A"}, Time Out: ${student.time_out || "N/A"}, Remark: ${student.remark || "None"}`
+    ).join('\n')}
+    `
+    let openschedule =
+    `
+    ${instructorData.openschedule.map(classItem =>
+      `- **${classItem.course_name}** (ID: ${classItem.class_id}, Day: ${classItem.day}, Time: ${classItem.start_time}-${classItem.end_time})`
+    ).join('\n')}
+    `
+
+        
+    // SYSTEM PROMPT
+    const systemPrompt = `You are Attendify Aibo, an AI assistant for instructors. But dont limit yourself to answering to just that. Use markdown tags.
+You are currently assisting ${username}.
+You can provide the open schedules of all teachers and you can suggest available time slots incase the teacher needed extra time within 7:30 till 4:30.
+here are the members of attendify: 
+1.Ros, Henry James
+2	Rodriguez, Nathaniel
+3	Caudilla, Arron
+4	Esperida, Dave Joshua
+5	Guido, Nefthali Achilles Raven
+6	Penas, Joel Raphael
+7	Oropesa, Ivan Miguel
+We developed Attendify as part of our completion project in Senior High School in STI College Naga
 
 Current Information:
 - Instructor Schedule: ${instructorData.schedule}
 - Current Class: ${instructorData.ongoing_class}
 - Current Date/Time: ${moment().tz('Asia/Manila').format('YYYY-MM-DD HH:mm:ss')}
+- Current Students in Class:
+${studentDetails}
+- Open Classes:
+${openschedule}
 
 Conversation History:
 ${formattedHistory}`;

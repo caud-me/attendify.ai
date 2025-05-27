@@ -5,22 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Attendify Aibo Chat</title>
   <script src="https://cdn.jsdelivr.net/npm/showdown/dist/showdown.min.js"></script>
+  <!-- PDF.js for PDF parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+  <!-- Mammoth.js for DOCX parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <!-- PapaParse for CSV parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <link rel="stylesheet" href="stylesheets/pre.css">
   <link rel="stylesheet" href="stylesheets/ui.css">
   <link rel="stylesheet" href="stylesheets/fun.css">
 </head>
 <body>
   <main>
-    <section>
-      <a href="/">Go Back</a>
-      <h1 class="colorfull animating">Aibo</h1>
+    <header>
+      <h1></h1>
+      <h1 class="colorfull animating">✨<br>Let's work together</h1>
       <div class="respect">
           <img src="resources/verified.svg" alt="" srcset="">
           <p>Verified AI</p>
+          <a href="/">Go Back</a>
           <a class="button" href="/logout">Sign Out</a>
           <a href="/settings" class="button">Settings</a>
       </div>
-    </section>
+    </header>
 
     
 
@@ -30,8 +37,19 @@
       </div>
 
       <div class="input-area">
+        <div class="upload-container">
+          <label for="file-upload" class="file-label">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M8 2a5.53 5.53 0 0 0-3.594 1.342c-.766.66-1.321 1.52-1.464 2.383C1.266 6.095 0 7.555 0 9.318 0 11.366 1.708 13 3.781 13h8.906C14.502 13 16 11.57 16 9.773c0-1.636-1.242-2.969-2.834-3.194C12.923 3.999 10.69 2 8 2zm2.354 5.146a.5.5 0 0 1-.708.708L8.5 6.707V10.5a.5.5 0 0 1-1 0V6.707L6.354 7.854a.5.5 0 1 1-.708-.708l2-2a.5.5 0 0 1 .708 0l2 2z"/>
+            </svg>
+            Attach File
+          </label>
+          <input type="file" id="file-upload" accept=".txt,.pdf,.doc,.docx,.csv" style="display:none" />
+          <span id="file-name"></span>
+          <button id="clear-file" style="display:none">×</button>
+        </div>
         <input id="prompt" placeholder="Type your message..." />
-        <button onclick="ask()">Send</button>
+        <button id="send-btn" onclick="ask()">Send</button>
       </div>
     </section>
   </main>
@@ -39,9 +57,16 @@
   <script>
     const messageHistory = [];
     const dummyInitialMessage = {
-      content: "Hello! I'm Aibo. Hit me with your thoughts",
+      content: "Hello! I'm Attendify Aibo. Ready to hit the ground running, what can I do for you?",
       role: "bot"
     };
+    
+    let currentUploadedFile = null;
+    let fileContent = null;
+    let fileProcessingStatus = null; // 'processing', 'ready', 'error'
+    
+    // Configure PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
 
 async function resetConversation() {
   try {
@@ -70,6 +95,162 @@ function initUI() {
       ask();
     }
   });
+  
+  // Set up file upload functionality
+  const fileUpload = document.getElementById("file-upload");
+  const fileName = document.getElementById("file-name");
+  const clearFileBtn = document.getElementById("clear-file");
+  
+  fileUpload.addEventListener("change", function() {
+    if (this.files.length > 0) {
+      const file = this.files[0];
+      currentUploadedFile = file;
+      
+      // Show file is being processed
+      fileName.textContent = `Processing ${file.name}...`;
+      fileName.className = "file-processing";
+      clearFileBtn.style.display = "inline";
+      fileProcessingStatus = 'processing';
+      
+      // Process the file based on its type
+      processFile(file)
+        .then(content => {
+          fileContent = content;
+          fileName.textContent = `${file.name} (Ready)`;
+          fileName.className = "file-ready";
+          fileProcessingStatus = 'ready';
+        })
+        .catch(error => {
+          console.error("Error processing file:", error);
+          fileName.textContent = `${file.name} (Error: ${error.message})`;
+          fileName.className = "file-error";
+          fileProcessingStatus = 'error';
+        });
+    } else {
+      clearFileSelection();
+    }
+  });
+  
+  clearFileBtn.addEventListener("click", function() {
+    clearFileSelection();
+  });
+}
+
+function clearFileSelection() {
+  document.getElementById("file-upload").value = "";
+  document.getElementById("file-name").textContent = "";
+  document.getElementById("clear-file").style.display = "none";
+  currentUploadedFile = null;
+  fileContent = null;
+  fileProcessingStatus = null;
+}
+
+// Process file based on type
+async function processFile(file) {
+  const fileType = file.type;
+  const fileName = file.name.toLowerCase();
+  
+  // Plain text files
+  if (fileType === 'text/plain' || fileName.endsWith('.txt')) {
+    return readAsText(file);
+  }
+  // CSV files
+  else if (fileType === 'text/csv' || fileName.endsWith('.csv')) {
+    return parseCSV(file);
+  }
+  // PDF files
+  else if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
+    return extractPDFText(file);
+  }
+  // Word documents
+  else if (fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
+           fileName.endsWith('.docx')) {
+    return extractDocxText(file);
+  }
+  // Fallback: try to read as text
+  else {
+    try {
+      return readAsText(file);
+    } catch (error) {
+      throw new Error("Unsupported file format");
+    }
+  }
+}
+
+// Basic text file reading
+function readAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = event => resolve(event.target.result);
+    reader.onerror = error => reject(error);
+    reader.readAsText(file);
+  });
+}
+
+// Parse CSV to text
+function parseCSV(file) {
+  return new Promise((resolve, reject) => {
+    Papa.parse(file, {
+      complete: function(results) {
+        if (results.errors.length > 0) {
+          reject(new Error("Error parsing CSV"));
+        } else {
+          // Convert the array of arrays to a readable text format
+          const textContent = results.data
+            .map(row => row.join(','))
+            .join('\n');
+          resolve(textContent);
+        }
+      },
+      error: function(error) {
+        reject(error);
+      }
+    });
+  });
+}
+
+// Extract text from PDF
+async function extractPDFText(file) {
+  try {
+    // Turn your File into an object URL
+    const blobUrl = URL.createObjectURL(file);
+    // Load the document
+    const pdf = await pdfjsLib.getDocument({ url: blobUrl }).promise;
+    
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      fullText += textContent.items.map(item => item.str).join(' ') + '\n\n';
+    }
+
+    URL.revokeObjectURL(blobUrl);
+    return fullText;
+  } catch (error) {
+    console.error("PDF extraction error:", error);
+    throw new Error("Failed to extract PDF text: " + error.message);
+  }
+}
+
+
+// Extract text from DOCX
+async function extractDocxText(file) {
+  try {
+    // Read the file as ArrayBuffer
+    const arrayBuffer = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
+    });
+    
+    // Convert DOCX to HTML
+    const result = await mammoth.extractRawText({arrayBuffer});
+    return result.value;
+  } catch (error) {
+    console.error("DOCX extraction error:", error);
+    throw new Error("Failed to extract DOCX text");
+  }
 }
 
 function addMessageToChat(content, role) {
@@ -78,15 +259,13 @@ function addMessageToChat(content, role) {
   messageDiv.className = `message ${role}-message`;
 
   if (role === 'bot') {
-    const converter = new showdown.Converter({
-      simplifiedAutoLink: true,
-      strikethrough: true,
-      tables: true
-    });
-    const html = converter.makeHtml(content);
-    messageDiv.innerHTML = html;
+    // unchanged...
+    const converter = new showdown.Converter({ /* … */ });
+    const botSignature = "<div class='colorfull animated'>✨ <strong>Attendify Aibo</strong></div>";
+    messageDiv.innerHTML = botSignature + converter.makeHtml(content);
 
-    // ✨ Apply temporary gradient animation
+
+        // ✨ Apply temporary gradient animation
     messageDiv.classList.add('bot-animated');
 
     // 👇 After animation, switch to solid style for JUST this message
@@ -95,38 +274,97 @@ function addMessageToChat(content, role) {
       messageDiv.classList.add('bot-solid');
     }, 2000); // match CSS animation duration
   } else {
-    messageDiv.textContent = content;
+    // USER MESSAGE: detect “[Document: filename] rest…”
+    const fileTagRe = /^\[Document:\s*(.+?)\]\s*(.*)$/;
+    const m = content.match(fileTagRe);
+    if (m) {
+      const filename = m[1];
+      const rest = m[2];
+
+      // build badge
+      const badge = document.createElement('div');
+      badge.className = 'file-badge';
+      badge.innerHTML = `
+        <img src="resources/file.svg" alt="Document icon" />
+        <span class="filename">${filename}</span>
+      `;
+      messageDiv.appendChild(badge);
+
+      // add the rest in a paragraph
+      if (rest.trim()) {
+        const p = document.createElement("div");
+        p.textContent = rest;
+        messageDiv.appendChild(p);
+      }
+    } else {
+      const p = document.createElement("div");
+      p.textContent = content;
+      messageDiv.appendChild(p);
+    }
   }
 
   outputDiv.appendChild(messageDiv);
   outputDiv.scrollTop = outputDiv.scrollHeight;
 }
 
-    function showTypingIndicator() {
-      const outputDiv = document.getElementById("output");
-      const indicator = document.createElement("div");
-      indicator.className = "typing-indicator";
-      indicator.id = "typing-indicator";
-      indicator.innerHTML = "<span></span><span></span><span></span> Thinking...";
-      outputDiv.appendChild(indicator);
-      outputDiv.scrollTop = outputDiv.scrollHeight;
-    }
+function showTypingIndicator() {
+  const outputDiv = document.getElementById("output");
+  const indicator = document.createElement("div");
+  indicator.className = "typing-indicator";
+  indicator.id = "typing-indicator";
+  indicator.innerHTML = "<span></span><span></span><span></span> Thinking...";
+  outputDiv.appendChild(indicator);
+  outputDiv.scrollTop = outputDiv.scrollHeight;
+}
 
-    function removeTypingIndicator() {
-      const indicator = document.getElementById("typing-indicator");
-      if (indicator) indicator.remove();
-    }
+function removeTypingIndicator() {
+  const indicator = document.getElementById("typing-indicator");
+  if (indicator) indicator.remove();
+}
 
 async function ask() {
   const promptInput = document.getElementById("prompt");
-  const sendButton = document.querySelector(".input-area button");
+  const sendButton = document.getElementById("send-btn");
   const prompt = promptInput.value;
 
   if (!prompt.trim()) return;
 
-  // Add user message
-  addMessageToChat(prompt, 'user');
-  messageHistory.push({ role: 'user', content: prompt });
+  // Check if a file is still being processed
+  if (fileProcessingStatus === 'processing') {
+    alert("Please wait until the file is fully processed.");
+    return;
+  }
+
+  // If there's a file with an error, warn the user
+  if (fileProcessingStatus === 'error') {
+    const proceed = confirm("There was an error processing your file. Do you want to continue without the file content?");
+    if (!proceed) return;
+  }
+
+  // Prepare messages
+  let displayMessage = prompt;
+  let contentToSend = prompt;
+  
+  // If there's a successfully processed file, include it in the prompt
+  if (currentUploadedFile && fileContent && fileProcessingStatus === 'ready') {
+    displayMessage = `[Document: ${currentUploadedFile.name}] ${prompt}`;
+    
+    // Truncate file content if it's too large (to prevent API limits)
+    const maxContentLength = 10000; // Adjust based on your API's limits
+    const truncatedContent = fileContent.length > maxContentLength 
+      ? fileContent.substring(0, maxContentLength) + "\n[Content truncated due to length...]" 
+      : fileContent;
+    
+    contentToSend = `I have uploaded a document named "${currentUploadedFile.name}". Here is its content:
+
+${truncatedContent}
+
+My question about this document: ${prompt}`;
+  }
+  
+  // Add user message to chat
+  addMessageToChat(displayMessage, 'user');
+  messageHistory.push({ role: 'user', content: displayMessage });
 
   // Disable input while waiting
   promptInput.value = "";
@@ -138,7 +376,7 @@ async function ask() {
     const res = await fetch("http://localhost:3000/ask", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt: contentToSend })
     });
 
     const data = await res.json();
@@ -152,6 +390,11 @@ async function ask() {
     // Add bot message
     addMessageToChat(data.response, 'bot');
     messageHistory.push({ role: 'bot', content: data.response });
+    
+    // Clear file selection after successful processing
+    if (currentUploadedFile) {
+      clearFileSelection();
+    }
   } catch (err) {
     console.error("Error:", err);
     removeTypingIndicator();

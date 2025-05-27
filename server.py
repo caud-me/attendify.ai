@@ -14,7 +14,7 @@ def initialize_serial():
         return serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
     except serial.SerialException as e:
         print(f"Error: Unable to open serial port {SERIAL_PORT} - {e}")
-        exit(1)
+        -exit(1)
 
 ser = initialize_serial()
 

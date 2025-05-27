@@ -818,14 +818,20 @@ td {
 
 /* 
 reference for chat container
-    <section class="chat-container">
-      <div id="output">
-        <!-- Messages will be added here -->
-      </div>
-
       <div class="input-area">
+        <div class="upload-container">
+          <label for="file-upload" class="file-label">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M8 2a5.53 5.53 0 0 0-3.594 1.342c-.766.66-1.321 1.52-1.464 2.383C1.266 6.095 0 7.555 0 9.318 0 11.366 1.708 13 3.781 13h8.906C14.502 13 16 11.57 16 9.773c0-1.636-1.242-2.969-2.834-3.194C12.923 3.999 10.69 2 8 2zm2.354 5.146a.5.5 0 0 1-.708.708L8.5 6.707V10.5a.5.5 0 0 1-1 0V6.707L6.354 7.854a.5.5 0 1 1-.708-.708l2-2a.5.5 0 0 1 .708 0l2 2z"/>
+            </svg>
+            Attach File
+          </label>
+          <input type="file" id="file-upload" accept=".txt,.pdf,.doc,.docx,.csv" style="display:none" />
+          <span id="file-name"></span>
+          <button id="clear-file" style="display:none">×</button>
+        </div>
         <input id="prompt" placeholder="Type your message..." />
-        <button onclick="ask()">Send</button>
+        <button id="send-btn" onclick="ask()">Send</button>
       </div>
     </section>
  */
@@ -883,6 +889,27 @@ reference for chat container
     color: var(--ui-white);
     border: none;
     border-radius: var(--radius-sm);
+    font-family: 'Segoe UI Variable Small';
+    font-size: .875rem;
+    transition: var(--transition-smooth);
+}
+
+/* style the upload container */
+
+.upload-container {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.upload-container label {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    background-color: var(--ui-grayTranslucent2);
+    padding: .5rem;
+    border-radius: var(--radius-sm);
+    color: var(--ui-black);
     font-family: 'Segoe UI Variable Small';
     font-size: .875rem;
     transition: var(--transition-smooth);
@@ -965,4 +992,48 @@ pre {
 @keyframes smoothFadeOutGradient {
   0% { background-position: 0% 50%; }
   100% { background-position: 200% 50%; }
+}
+
+strong {
+    font-weight: 500;
+}
+
+/* file badge */
+
+/* .file-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2em 0.5em;
+  border-radius: 0.25em;
+  background: #2a2a2a;
+  color: #e0e0e0;
+  font-size: 0.9em;
+  margin-right: 0.5em;
+}
+
+ */
+
+.file-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em; /* Better spacing between icon and text */
+  background: var(--ui-grayTranslucent2);
+  color: var(--ui-gray);
+  padding: 0.5em 0.75em;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  line-height: 1.2;
+  margin-bottom: .5rem;
+}
+
+.file-badge img {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+}
+
+.file-badge .file-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
